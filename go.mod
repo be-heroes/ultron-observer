@@ -1,5 +1,3 @@
-module ultron
+module github.com/be-heroes/ultron-observer
 
 go 1.23.1
-
-require github.com/emma-community/emma-go-sdk v0.0.3

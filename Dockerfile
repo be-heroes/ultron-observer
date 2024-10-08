@@ -16,7 +16,7 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
-COPY --from=builder /app/ultron .
+COPY --from=builder /app/ultron-observer .
 
 EXPOSE 8443
 

@@ -1,9 +1,11 @@
 package main
 
 const (
-	EnvironmentVariableKeyEmmaClientId     = "EMMA_CLIENT_ID"
-	EnvironmentVariableKeyEmmaClientSecret = "EMMA_CLIENT_SECRET"
+	EnvironmentVariableKeyKubernetesConfig      = "KUBECONFIG"
+	EnvironmentVariableKeyKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
+	EnvironmentVariableKeyKubernetesServicePort = "KUBERNETES_SERVICE_PORT"
 )
 
 func main() {
+
 }
