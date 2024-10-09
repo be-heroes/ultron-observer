@@ -1,6 +1,6 @@
 # Ultron Observer
 
-// TODO:
+Ultron Observer is a tool designed to monitor in-cluster resources for Ultron. It integrates with various cluster APIs to provide real-time data on cluster resources to Ultron. Ultron Observer is built with Go and can be run as a standalone application or within a Docker container.
 
 ## Prerequisites
 
