@@ -16,5 +16,3 @@ services:
       
 networks:
   ultron:
-    external:
-      name: ultron
