@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
 	services "github.com/be-heroes/ultron-observer/internal/services"
 	ultron "github.com/be-heroes/ultron/pkg"
@@ -48,7 +49,9 @@ func main() {
 	var observer services.IObserverService
 	var mapper mapper.IMapper = mapper.NewMapper()
 
-	kubernetesClient, err = kubernetes.NewKubernetesClient("", "", &mapper)
+	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
+	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
+	kubernetesClient, err = kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper)
 	if err != nil {
 		log.Fatalf("Failed to initialize kubernetes client with error: %v", err)
 	}
