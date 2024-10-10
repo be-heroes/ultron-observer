@@ -3,7 +3,7 @@ module github.com/be-heroes/ultron-observer
 go 1.23.1
 
 require (
-	github.com/be-heroes/ultron v0.0.1
+	github.com/be-heroes/ultron v0.1.0
 	github.com/redis/go-redis/v9 v9.6.1
 	k8s.io/api v0.31.1
 	k8s.io/apimachinery v0.31.1
@@ -16,7 +16,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
-	github.com/emma-community/emma-go-sdk v0.0.3 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
