@@ -16,11 +16,11 @@ type IObserverService interface {
 }
 
 type ObserverService struct {
-	client *kubernetes.IKubernetesClient
-	mapper *mapper.IMapper
+	client kubernetes.IKubernetesClient
+	mapper mapper.IMapper
 }
 
-func NewObserverService(client *kubernetes.IKubernetesClient, mapper *mapper.IMapper) *ObserverService {
+func NewObserverService(client kubernetes.IKubernetesClient, mapper mapper.IMapper) *ObserverService {
 	return &ObserverService{
 		client: client,
 		mapper: mapper,

@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
 	"sync"
 	"syscall"
+
+	"go.uber.org/zap"
 
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
@@ -21,16 +22,63 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func main() {
-	log.Println("Initializing ultron-observer")
+type Config struct {
+	RedisServerAddress   string
+	RedisServerPassword  string
+	RedisServerDatabase  int
+	KubernetesConfigPath string
+	KubernetesMasterURL  string
+}
 
-	var redisClient *redis.Client
-
-	redisServerAddress := os.Getenv(ultron.EnvRedisServerAddress)
-	redisServerDatabase := os.Getenv(ultron.EnvRedisServerDatabase)
-	redisServerDatabaseInt, err := strconv.Atoi(redisServerDatabase)
+func LoadConfig() (*Config, error) {
+	redisDatabase, err := strconv.Atoi(os.Getenv(ultron.EnvRedisServerDatabase))
 	if err != nil {
-		redisServerDatabaseInt = 0
+		redisDatabase = 0
+	}
+
+	return &Config{
+		RedisServerAddress:   os.Getenv(ultron.EnvRedisServerAddress),
+		RedisServerPassword:  os.Getenv(ultron.EnvRedisServerPassword),
+		RedisServerDatabase:  redisDatabase,
+		KubernetesConfigPath: os.Getenv(attendant.EnvKubernetesConfig),
+		KubernetesMasterURL:  fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort)),
+	}, nil
+}
+
+func initializeRedisClient(ctx context.Context, config *Config, sugar *zap.SugaredLogger) *redis.Client {
+	if config.RedisServerAddress == "" {
+		return nil
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     config.RedisServerAddress,
+		Password: config.RedisServerPassword,
+		DB:       config.RedisServerDatabase,
+	})
+
+	_, err := redisClient.Ping(ctx).Result()
+	if err != nil {
+		sugar.Fatalf("Failed to ping redis server with error: %v", err)
+	}
+	return redisClient
+}
+
+func initializeKubernetesClient(config *Config, mapper mapper.IMapper, sugar *zap.SugaredLogger) kubernetes.IKubernetesClient {
+	kubernetesClient, err := kubernetes.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath, mapper)
+	if err != nil {
+		sugar.Fatalf("Failed to initialize kubernetes client with error: %v", err)
+	}
+	return kubernetesClient
+}
+
+func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+	sugar := logger.Sugar()
+	sugar.Info("Initializing ultron-observer")
+
+	config, err := LoadConfig()
+	if err != nil {
+		sugar.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -40,38 +88,17 @@ func main() {
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-shutdown
-		log.Println("Received shutdown signal, stopping observer...")
+		sugar.Info("Received shutdown signal, stopping observer...")
 		cancel()
 	}()
 
-	if redisServerAddress != "" {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:     redisServerAddress,
-			Password: os.Getenv(ultron.EnvRedisServerPassword),
-			DB:       redisServerDatabaseInt,
-		})
+	mapperInstance := mapper.NewMapper()
+	redisClient := initializeRedisClient(ctx, config, sugar)
+	kubernetesClient := initializeKubernetesClient(config, mapperInstance, sugar)
+	observer := services.NewObserverService(kubernetesClient, mapperInstance)
 
-		_, err := redisClient.Ping(ctx).Result()
-		if err != nil {
-			log.Fatalf("Failed to ping redis server with error: %v", err)
-		}
-	}
-
-	var kubernetesClient kubernetes.IKubernetesClient
-	var observer services.IObserverService
-	var mapper mapper.IMapper = mapper.NewMapper()
-
-	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
-	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
-	kubernetesClient, err = kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, mapper)
-	if err != nil {
-		log.Fatalf("Failed to initialize kubernetes client with error: %v", err)
-	}
-
-	observer = services.NewObserverService(&kubernetesClient, &mapper)
-
-	log.Println("Initialized ultron-observer")
-	log.Println("Starting ultron-observer")
+	sugar.Info("Initialized ultron-observer")
+	sugar.Info("Starting ultron-observer")
 
 	var wg sync.WaitGroup
 
@@ -80,14 +107,14 @@ func main() {
 		defer pubsub.Close()
 
 		ch := pubsub.Channel()
-		log.Println("Subscribed to Redis channels. Waiting for messages...")
+		sugar.Info("Subscribed to Redis channels. Waiting for messages...")
 
 		for {
 			select {
 			case <-ctx.Done():
-				log.Println("Context cancelled, stopping message processing loop.")
+				sugar.Info("Context cancelled, stopping message processing loop.")
 				wg.Wait()
-				log.Println("All goroutines completed, exiting.")
+				sugar.Info("All goroutines completed, exiting.")
 				return
 			case msg := <-ch:
 				if msg == nil {
@@ -97,42 +124,42 @@ func main() {
 				wg.Add(1)
 				go func(msg *redis.Message) {
 					defer wg.Done()
-					processMessage(ctx, observer, msg)
+					processMessage(ctx, observer, msg, sugar)
 				}(msg)
 			}
 		}
 	}
 }
 
-func processMessage(ctx context.Context, observer services.IObserverService, msg *redis.Message) {
+func processMessage(ctx context.Context, observer services.IObserverService, msg *redis.Message, sugar *zap.SugaredLogger) {
 	switch msg.Channel {
 	case ultron.TopicPodObserve:
 		var pod corev1.Pod
 		if err := json.Unmarshal([]byte(msg.Payload), &pod); err != nil {
-			log.Printf("Error deserializing msg.Payload to Pod: %v", err)
+			sugar.Errorf("Error deserializing msg.Payload to Pod: %v", err)
 			return
 		}
 		errChan := make(chan error, 1)
 		go observer.ObservePod(ctx, &pod, errChan)
 
 		if err := <-errChan; err != nil {
-			log.Printf("Error occurred while observing Pod: %v", err)
+			sugar.Errorf("Error occurred while observing Pod: %v", err)
 		}
 
 	case ultron.TopicNodeObserve:
 		var node corev1.Node
 		if err := json.Unmarshal([]byte(msg.Payload), &node); err != nil {
-			log.Printf("Error deserializing msg.Payload to Node: %v", err)
+			sugar.Errorf("Error deserializing msg.Payload to Node: %v", err)
 			return
 		}
 		errChan := make(chan error, 1)
 		go observer.ObserveNode(ctx, &node, errChan)
 
 		if err := <-errChan; err != nil {
-			log.Printf("Error occurred while observing Node: %v", err)
+			sugar.Errorf("Error occurred while observing Node: %v", err)
 		}
 
 	default:
-		log.Printf("Received message from unsupported channel: %s", msg.Channel)
+		sugar.Warnf("Received message from unsupported channel: %s", msg.Channel)
 	}
 }
