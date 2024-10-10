@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
-	services "github.com/be-heroes/ultron-observer/internal/services"
+	"github.com/be-heroes/ultron-observer/internal/services"
 	ultron "github.com/be-heroes/ultron/pkg"
 	"github.com/be-heroes/ultron/pkg/mapper"
 
@@ -31,7 +33,16 @@ func main() {
 		redisServerDatabaseInt = 0
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-shutdown
+		log.Println("Received shutdown signal, stopping observer...")
+		cancel()
+	}()
 
 	if redisServerAddress != "" {
 		redisClient = redis.NewClient(&redis.Options{
@@ -84,17 +95,13 @@ func main() {
 				}
 
 				wg.Add(1)
-
 				go func(msg *redis.Message) {
 					defer wg.Done()
-
 					processMessage(ctx, observer, msg)
 				}(msg)
 			}
 		}
 	}
-
-	log.Println("Stopped ultron-observer")
 }
 
 func processMessage(ctx context.Context, observer services.IObserverService, msg *redis.Message) {
