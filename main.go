@@ -12,12 +12,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	EnvironmentVariableKeyKubernetesConfig      = "KUBECONFIG"
-	EnvironmentVariableKeyKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
-	EnvironmentVariableKeyKubernetesServicePort = "KUBERNETES_SERVICE_PORT"
-)
-
 func main() {
 	var redisClient *redis.Client
 
