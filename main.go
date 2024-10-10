@@ -42,6 +42,7 @@ func main() {
 	}
 
 	log.Println("Initialized ultron-observer")
+	log.Println("Starting ultron-observer")
 
 	if redisClient != nil {
 		pubsub := redisClient.Subscribe(ctx, ultron.TopicPodObserve, ultron.TopicNodeObserve)
