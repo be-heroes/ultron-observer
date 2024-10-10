@@ -49,6 +49,7 @@ func main() {
 	var observer services.IObserverService
 	var mapper mapper.IMapper = mapper.NewMapper()
 
+	errChannels := make([]chan error, 0)
 	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
 	kubernetesClient, err = kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper)
@@ -85,6 +86,8 @@ func main() {
 				errChan := make(chan error)
 
 				go observer.ObservePod(ctx, &pod, errChan)
+
+				errChannels = append(errChannels, errChan)
 			case ultron.TopicNodeObserve:
 				var node corev1.Node
 
@@ -96,9 +99,20 @@ func main() {
 				errChan := make(chan error)
 
 				go observer.ObserveNode(ctx, &node, errChan)
+
+				errChannels = append(errChannels, errChan)
 			default:
 				fmt.Printf("Received message from unsupported channel: %s\n", msg.Channel)
 			}
 		}
 	}
+
+	for _, errChan := range errChannels {
+		err := <-errChan
+		if err != nil {
+			log.Fatalf("Error occurred while observing: %v", err)
+		}
+	}
+
+	log.Println("Stopped ultron-observer")
 }
