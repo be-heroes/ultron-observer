@@ -8,7 +8,10 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
+	services "github.com/be-heroes/ultron-observer/internal/services"
 	ultron "github.com/be-heroes/ultron/pkg"
+	"github.com/be-heroes/ultron/pkg/mapper"
 
 	"github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +44,17 @@ func main() {
 		}
 	}
 
+	var kubernetesClient kubernetes.IKubernetesClient
+	var observer services.IObserverService
+	var mapper mapper.IMapper = mapper.NewMapper()
+
+	kubernetesClient, err = kubernetes.NewKubernetesClient("", "", &mapper)
+	if err != nil {
+		log.Fatalf("Failed to initialize kubernetes client with error: %v", err)
+	}
+
+	observer = services.NewObserverService(&kubernetesClient, &mapper)
+
 	log.Println("Initialized ultron-observer")
 	log.Println("Starting ultron-observer")
 
@@ -62,7 +76,7 @@ func main() {
 					log.Fatalf("Error deserializing msg.Payload to Pod: %v", err)
 				}
 
-				// TODO: Implement logic to handle Pod events
+				go observer.ObservePod(&pod)
 			case ultron.TopicNodeObserve:
 				var node corev1.Node
 
@@ -71,7 +85,7 @@ func main() {
 					log.Fatalf("Error deserializing msg.Payload to Node: %v", err)
 				}
 
-				// TODO: Implement logic to handle Node events
+				go observer.ObserveNode(&node)
 			default:
 				fmt.Printf("Received message from unsupported channel: %s\n", msg.Channel)
 			}
