@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 
@@ -115,8 +116,8 @@ func (k *KubernetesClient) GetPodMetrics() (map[string]map[string]string, error)
 			}
 
 			metrics[podMetric.Name] = map[string]string{
-				"cpuTotal":    string(cpuTotal),
-				"memoryTotal": string(memoryTotal),
+				"cpuTotal":    strconv.FormatInt(cpuTotal, 10),
+				"memoryTotal": strconv.FormatInt(memoryTotal, 10),
 			}
 		}
 	}
