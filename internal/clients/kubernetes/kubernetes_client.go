@@ -70,8 +70,8 @@ func (k *KubernetesClient) GetNodeMetrics() (map[string]map[string]string, error
 		memoryUsage := nodeMetric.Usage["memory"]
 
 		metrics[nodeMetric.Name] = map[string]string{
-			"cpu":    cpuUsage.AsDec().String(),
-			"memory": memoryUsage.AsDec().String(),
+			"cpuUsage":    cpuUsage.AsDec().String(),
+			"memoryUsage": memoryUsage.AsDec().String(),
 		}
 	}
 
@@ -103,20 +103,20 @@ func (k *KubernetesClient) GetPodMetrics() (map[string]map[string]string, error)
 		}
 
 		for _, podMetric := range podMetricsList.Items {
-			totalCPU := int64(0)
-			totalMemory := int64(0)
+			cpuTotal := int64(0)
+			memoryTotal := int64(0)
 
 			for _, container := range podMetric.Containers {
 				cpuUsage := container.Usage[corev1.ResourceCPU]
 				memUsage := container.Usage[corev1.ResourceMemory]
 
-				totalCPU += cpuUsage.MilliValue()
-				totalMemory += memUsage.Value()
+				cpuTotal += cpuUsage.MilliValue()
+				memoryTotal += memUsage.Value()
 			}
 
 			metrics[podMetric.Name] = map[string]string{
-				"cpu":    string(totalCPU),
-				"memory": string(totalMemory),
+				"cpuTotal":    string(cpuTotal),
+				"memoryTotal": string(memoryTotal),
 			}
 		}
 	}
