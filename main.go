@@ -66,6 +66,9 @@ func main() {
 
 		fmt.Println("Subscribed to redis channels. Waiting for messages...")
 
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		for msg := range ch {
 			switch msg.Channel {
 			case ultron.TopicPodObserve:
@@ -76,7 +79,9 @@ func main() {
 					log.Fatalf("Error deserializing msg.Payload to Pod: %v", err)
 				}
 
-				go observer.ObservePod(&pod)
+				errChan := make(chan error)
+
+				go observer.ObservePod(ctx, &pod, errChan)
 			case ultron.TopicNodeObserve:
 				var node corev1.Node
 
@@ -85,7 +90,9 @@ func main() {
 					log.Fatalf("Error deserializing msg.Payload to Node: %v", err)
 				}
 
-				go observer.ObserveNode(&node)
+				errChan := make(chan error)
+
+				go observer.ObserveNode(ctx, &node, errChan)
 			default:
 				fmt.Printf("Received message from unsupported channel: %s\n", msg.Channel)
 			}

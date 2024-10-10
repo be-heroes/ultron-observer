@@ -1,14 +1,17 @@
 package services
 
 import (
+	"context"
+	"errors"
+
 	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	corev1 "k8s.io/api/core/v1"
 )
 
 type IObserverService interface {
-	ObservePod(pod *corev1.Pod) error
-	ObserveNode(node *corev1.Node) error
+	ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error)
+	ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error)
 }
 
 type ObserverService struct {
@@ -23,14 +26,26 @@ func NewObserverService(client *kubernetes.IKubernetesClient, mapper *mapper.IMa
 	}
 }
 
-func (o *ObserverService) ObservePod(pod *corev1.Pod) error {
-	// TODO: Impl logic to observe Pod
-
-	return nil
+func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error) {
+	for {
+		select {
+		case <-ctx.Done():
+			errChan <- errors.New("goroutine canceled")
+		default:
+			// TODO: Impl logic to observe Pod
+			errChan <- nil
+		}
+	}
 }
 
-func (o *ObserverService) ObserveNode(node *corev1.Node) error {
-	// TODO: Impl logic to observe Node
-
-	return nil
+func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error) {
+	for {
+		select {
+		case <-ctx.Done():
+			errChan <- errors.New("goroutine canceled")
+		default:
+			// TODO: Impl logic to observe Node
+			errChan <- nil
+		}
+	}
 }
