@@ -63,7 +63,7 @@ func main() {
 
 	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
-	kubernetesClient, err = kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper)
+	kubernetesClient, err = kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, mapper)
 	if err != nil {
 		log.Fatalf("Failed to initialize kubernetes client with error: %v", err)
 	}

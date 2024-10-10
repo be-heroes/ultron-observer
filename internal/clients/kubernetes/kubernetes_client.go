@@ -21,13 +21,13 @@ type IKubernetesClient interface {
 }
 
 type KubernetesClient struct {
+	config               *rest.Config
+	mapper               mapper.IMapper
 	kubernetesMasterUrl  string
 	kubernetesConfigPath string
-	config               *rest.Config
-	mapper               *mapper.IMapper
 }
 
-func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper *mapper.IMapper) (*KubernetesClient, error) {
+func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.IMapper) (*KubernetesClient, error) {
 	var err error
 
 	if kubernetesMasterUrl == "tcp://:" {
