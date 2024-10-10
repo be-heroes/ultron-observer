@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
@@ -49,7 +50,6 @@ func main() {
 	var observer services.IObserverService
 	var mapper mapper.IMapper = mapper.NewMapper()
 
-	errChannels := make([]chan error, 0)
 	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
 	kubernetesClient, err = kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper)
@@ -62,57 +62,70 @@ func main() {
 	log.Println("Initialized ultron-observer")
 	log.Println("Starting ultron-observer")
 
+	var wg sync.WaitGroup
+
 	if redisClient != nil {
 		pubsub := redisClient.Subscribe(ctx, ultron.TopicPodObserve, ultron.TopicNodeObserve)
 		defer pubsub.Close()
 
 		ch := pubsub.Channel()
+		log.Println("Subscribed to Redis channels. Waiting for messages...")
 
-		fmt.Println("Subscribed to redis channels. Waiting for messages...")
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		for msg := range ch {
-			switch msg.Channel {
-			case ultron.TopicPodObserve:
-				var pod corev1.Pod
-
-				err := json.Unmarshal([]byte(msg.Payload), &pod)
-				if err != nil {
-					log.Fatalf("Error deserializing msg.Payload to Pod: %v", err)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Context cancelled, stopping message processing loop.")
+				wg.Wait()
+				log.Println("All goroutines completed, exiting.")
+				return
+			case msg := <-ch:
+				if msg == nil {
+					continue
 				}
 
-				errChan := make(chan error)
+				wg.Add(1)
 
-				go observer.ObservePod(ctx, &pod, errChan)
+				go func(msg *redis.Message) {
+					defer wg.Done()
 
-				errChannels = append(errChannels, errChan)
-			case ultron.TopicNodeObserve:
-				var node corev1.Node
-
-				err := json.Unmarshal([]byte(msg.Payload), &node)
-				if err != nil {
-					log.Fatalf("Error deserializing msg.Payload to Node: %v", err)
-				}
-
-				errChan := make(chan error)
-
-				go observer.ObserveNode(ctx, &node, errChan)
-
-				errChannels = append(errChannels, errChan)
-			default:
-				fmt.Printf("Received message from unsupported channel: %s\n", msg.Channel)
+					processMessage(ctx, observer, msg)
+				}(msg)
 			}
 		}
 	}
 
-	for _, errChan := range errChannels {
-		err := <-errChan
-		if err != nil {
-			log.Fatalf("Error occurred while observing: %v", err)
-		}
-	}
-
 	log.Println("Stopped ultron-observer")
+}
+
+func processMessage(ctx context.Context, observer services.IObserverService, msg *redis.Message) {
+	switch msg.Channel {
+	case ultron.TopicPodObserve:
+		var pod corev1.Pod
+		if err := json.Unmarshal([]byte(msg.Payload), &pod); err != nil {
+			log.Printf("Error deserializing msg.Payload to Pod: %v", err)
+			return
+		}
+		errChan := make(chan error, 1)
+		go observer.ObservePod(ctx, &pod, errChan)
+
+		if err := <-errChan; err != nil {
+			log.Printf("Error occurred while observing Pod: %v", err)
+		}
+
+	case ultron.TopicNodeObserve:
+		var node corev1.Node
+		if err := json.Unmarshal([]byte(msg.Payload), &node); err != nil {
+			log.Printf("Error deserializing msg.Payload to Node: %v", err)
+			return
+		}
+		errChan := make(chan error, 1)
+		go observer.ObserveNode(ctx, &node, errChan)
+
+		if err := <-errChan; err != nil {
+			log.Printf("Error occurred while observing Node: %v", err)
+		}
+
+	default:
+		log.Printf("Received message from unsupported channel: %s", msg.Channel)
+	}
 }
