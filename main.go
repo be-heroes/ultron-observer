@@ -3,76 +3,21 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 
 	"go.uber.org/zap"
 
-	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	"github.com/be-heroes/ultron-observer/internal/services"
+	observer "github.com/be-heroes/ultron-observer/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	"github.com/be-heroes/ultron/pkg/mapper"
-	ultronServices "github.com/be-heroes/ultron/pkg/services"
 
 	"github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 )
-
-type Config struct {
-	RedisServerAddress   string
-	RedisServerPassword  string
-	RedisServerDatabase  int
-	KubernetesConfigPath string
-	KubernetesMasterURL  string
-}
-
-func LoadConfig() (*Config, error) {
-	redisDatabase, err := strconv.Atoi(os.Getenv(ultron.EnvRedisServerDatabase))
-	if err != nil {
-		redisDatabase = 0
-	}
-
-	return &Config{
-		RedisServerAddress:   os.Getenv(ultron.EnvRedisServerAddress),
-		RedisServerPassword:  os.Getenv(ultron.EnvRedisServerPassword),
-		RedisServerDatabase:  redisDatabase,
-		KubernetesConfigPath: os.Getenv(attendant.EnvKubernetesConfig),
-		KubernetesMasterURL:  fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort)),
-	}, nil
-}
-
-func initializeRedisClient(ctx context.Context, config *Config, sugar *zap.SugaredLogger) *redis.Client {
-	if config.RedisServerAddress == "" {
-		return nil
-	}
-
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     config.RedisServerAddress,
-		Password: config.RedisServerPassword,
-		DB:       config.RedisServerDatabase,
-	})
-
-	_, err := redisClient.Ping(ctx).Result()
-	if err != nil {
-		sugar.Fatalf("Failed to ping redis server with error: %v", err)
-	}
-
-	return redisClient
-}
-
-func initializeKubernetesClient(config *Config, mapper mapper.IMapper, sugar *zap.SugaredLogger) ultronServices.IKubernetesService {
-	kubernetesClient, err := ultronServices.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath)
-
-	if err != nil {
-		sugar.Fatalf("Failed to initialize kubernetes client with error: %v", err)
-	}
-
-	return kubernetesClient
-}
 
 func main() {
 	logger, _ := zap.NewProduction()
@@ -81,7 +26,7 @@ func main() {
 	sugar := logger.Sugar()
 	sugar.Info("Initializing ultron-observer")
 
-	config, err := LoadConfig()
+	config, err := observer.LoadConfig()
 	if err != nil {
 		sugar.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -99,9 +44,19 @@ func main() {
 		cancel()
 	}()
 
+	redisClient := ultron.InitializeRedisClient(config.RedisServerAddress, config.RedisServerPassword, config.RedisServerDatabase)
+	if redisClient != nil {
+		if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+			sugar.Fatalw("Failed to connect to Redis", "error", err)
+		}
+	}
+
+	kubernetesClient, err := observer.InitializeKubernetesServiceFromConfig(config)
+	if err != nil {
+		sugar.Fatalf("Failed to initialize Kubernetes client: %v", err)
+	}
+
 	mapperInstance := mapper.NewMapper()
-	redisClient := initializeRedisClient(ctx, config, sugar)
-	kubernetesClient := initializeKubernetesClient(config, mapperInstance, sugar)
 	observer := services.NewObserverService(kubernetesClient, redisClient, mapperInstance)
 
 	sugar.Info("Initialized ultron-observer")

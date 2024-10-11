@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	services "github.com/be-heroes/ultron/pkg/services"
 )
@@ -17,18 +18,18 @@ func LoadConfig() (*Config, error) {
 
 	return &Config{
 		RedisServerAddress:   os.Getenv(ultron.EnvRedisServerAddress),
+		RedisServerPassword:  os.Getenv(ultron.EnvRedisServerPassword),
 		RedisServerDatabase:  redisDatabase,
-		KubernetesConfigPath: os.Getenv(ultron.EnvKubernetesConfig),
+		KubernetesConfigPath: os.Getenv(attendant.EnvKubernetesConfig),
+		KubernetesMasterURL:  fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort)),
 	}, nil
 }
 
-func InitializeKubernetesClient(config *Config) (kubernetesClient services.IKubernetesService, err error) {
-	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(ultron.EnvKubernetesServiceHost), os.Getenv(ultron.EnvKubernetesServicePort))
-
-	kubernetesClient, err = services.NewKubernetesClient(kubernetesMasterUrl, config.KubernetesConfigPath)
+func InitializeKubernetesServiceFromConfig(config *Config) (kubernetesService services.IKubernetesService, err error) {
+	kubernetesService, err = services.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return kubernetesClient, nil
+	return kubernetesService, nil
 }
