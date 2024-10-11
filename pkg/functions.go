@@ -26,7 +26,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func InitializeKubernetesServiceFromConfig(config *Config) (kubernetesService services.IKubernetesService, err error) {
-	kubernetesService, err = services.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath)
+	kubernetesService, err = services.NewKubernetesService(config.KubernetesMasterURL, config.KubernetesConfigPath)
 	if err != nil {
 		return nil, err
 	}

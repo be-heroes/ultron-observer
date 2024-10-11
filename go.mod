@@ -3,7 +3,7 @@ module github.com/be-heroes/ultron-observer
 go 1.23.1
 
 require (
-	github.com/be-heroes/ultron v0.1.3
+	github.com/be-heroes/ultron v0.1.4
 	github.com/be-heroes/ultron-attendant v0.1.0
 	github.com/redis/go-redis/v9 v9.6.1
 	go.uber.org/zap v1.27.0
