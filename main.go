@@ -132,8 +132,10 @@ func main() {
 				}
 
 				wg.Add(1)
+
 				go func(msg *redis.Message) {
 					defer wg.Done()
+
 					processMessage(ctx, observer, msg, sugar)
 				}(msg)
 			}
