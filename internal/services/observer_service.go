@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	observer "github.com/be-heroes/ultron-observer/pkg"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
 	"github.com/redis/go-redis/v9"
@@ -32,8 +33,9 @@ func NewObserverService(kubernetesService services.IKubernetesService, redisClie
 }
 
 func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error) {
-	// TODO: Figure out a way to refresh cache entries if pods are allocated to another namespace or deleted.
-	podKey := fmt.Sprintf("observed_pods:%s:%s", pod.Namespace, pod.Name)
+	// TODO: Figure out a way to remove a cache entry if a pod is deleted.
+	// TODO: Figure out a way to update a cache entry if a pod is moved to another namespace.
+	podKey := fmt.Sprintf("%s:%s:%s", observer.CacheKeyPrefixPod, pod.Namespace, pod.Name)
 
 	exists, err := o.redisClient.Exists(ctx, podKey).Result()
 	if err != nil {
@@ -49,7 +51,6 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 	}
 
 	err = o.redisClient.Set(ctx, podKey, "observing", 0).Err()
-
 	if err != nil {
 		errChan <- fmt.Errorf("error setting Redis cache: %w", err)
 
@@ -85,8 +86,8 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 }
 
 func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error) {
-	// TODO: Figure out a way to refresh cache entries if pods are allocated to another namespace or deleted.
-	nodeKey := fmt.Sprintf("observed_nodes:%s:%s", node.Namespace, node.Name)
+	// TODO: Figure out a way to remove a cache entry if a node is removed.
+	nodeKey := fmt.Sprintf("%s:%s", observer.CacheKeyPrefixNode, node.Name)
 
 	exists, err := o.redisClient.Exists(ctx, nodeKey).Result()
 	if err != nil {
