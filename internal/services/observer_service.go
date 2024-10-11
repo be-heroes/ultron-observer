@@ -32,6 +32,7 @@ func NewObserverService(kubernetesService services.IKubernetesService, redisClie
 }
 
 func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error) {
+	// TODO: Figure out a way to refresh cache entries if pods are allocated to another namespace or deleted.
 	podKey := fmt.Sprintf("observed_pods:%s:%s", pod.Namespace, pod.Name)
 
 	exists, err := o.redisClient.Exists(ctx, podKey).Result()
@@ -84,6 +85,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 }
 
 func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error) {
+	// TODO: Figure out a way to refresh cache entries if pods are allocated to another namespace or deleted.
 	nodeKey := fmt.Sprintf("observed_nodes:%s:%s", node.Namespace, node.Name)
 
 	exists, err := o.redisClient.Exists(ctx, nodeKey).Result()
