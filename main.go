@@ -49,6 +49,7 @@ func initializeRedisClient(ctx context.Context, config *Config, sugar *zap.Sugar
 	if config.RedisServerAddress == "" {
 		return nil
 	}
+
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     config.RedisServerAddress,
 		Password: config.RedisServerPassword,
@@ -59,20 +60,24 @@ func initializeRedisClient(ctx context.Context, config *Config, sugar *zap.Sugar
 	if err != nil {
 		sugar.Fatalf("Failed to ping redis server with error: %v", err)
 	}
+
 	return redisClient
 }
 
 func initializeKubernetesClient(config *Config, mapper mapper.IMapper, sugar *zap.SugaredLogger) kubernetes.IKubernetesClient {
 	kubernetesClient, err := kubernetes.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath, mapper)
+
 	if err != nil {
 		sugar.Fatalf("Failed to initialize kubernetes client with error: %v", err)
 	}
+
 	return kubernetesClient
 }
 
 func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
+
 	sugar := logger.Sugar()
 	sugar.Info("Initializing ultron-observer")
 
@@ -85,7 +90,9 @@ func main() {
 	defer cancel()
 
 	shutdown := make(chan os.Signal, 1)
+
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+
 	go func() {
 		<-shutdown
 		sugar.Info("Received shutdown signal, stopping observer...")
@@ -113,8 +120,11 @@ func main() {
 			select {
 			case <-ctx.Done():
 				sugar.Info("Context cancelled, stopping message processing loop.")
+
 				wg.Wait()
+
 				sugar.Info("All goroutines completed, exiting.")
+
 				return
 			case msg := <-ch:
 				if msg == nil {
@@ -135,11 +145,14 @@ func processMessage(ctx context.Context, observer services.IObserverService, msg
 	switch msg.Channel {
 	case ultron.TopicPodObserve:
 		var pod corev1.Pod
+
 		if err := json.Unmarshal([]byte(msg.Payload), &pod); err != nil {
 			sugar.Errorf("Error deserializing msg.Payload to Pod: %v", err)
 			return
 		}
+
 		errChan := make(chan error, 1)
+
 		go observer.ObservePod(ctx, &pod, errChan)
 
 		if err := <-errChan; err != nil {
@@ -148,11 +161,14 @@ func processMessage(ctx context.Context, observer services.IObserverService, msg
 
 	case ultron.TopicNodeObserve:
 		var node corev1.Node
+
 		if err := json.Unmarshal([]byte(msg.Payload), &node); err != nil {
 			sugar.Errorf("Error deserializing msg.Payload to Node: %v", err)
 			return
 		}
+
 		errChan := make(chan error, 1)
+
 		go observer.ObserveNode(ctx, &node, errChan)
 
 		if err := <-errChan; err != nil {
