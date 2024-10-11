@@ -102,7 +102,7 @@ func main() {
 	mapperInstance := mapper.NewMapper()
 	redisClient := initializeRedisClient(ctx, config, sugar)
 	kubernetesClient := initializeKubernetesClient(config, mapperInstance, sugar)
-	observer := services.NewObserverService(kubernetesClient, mapperInstance)
+	observer := services.NewObserverService(kubernetesClient, redisClient, mapperInstance)
 
 	sugar.Info("Initialized ultron-observer")
 	sugar.Info("Starting ultron-observer")
