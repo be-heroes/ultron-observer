@@ -13,10 +13,10 @@ import (
 	"go.uber.org/zap"
 
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
-	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
 	"github.com/be-heroes/ultron-observer/internal/services"
 	ultron "github.com/be-heroes/ultron/pkg"
 	"github.com/be-heroes/ultron/pkg/mapper"
+	ultronServices "github.com/be-heroes/ultron/pkg/services"
 
 	"github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
@@ -64,8 +64,8 @@ func initializeRedisClient(ctx context.Context, config *Config, sugar *zap.Sugar
 	return redisClient
 }
 
-func initializeKubernetesClient(config *Config, mapper mapper.IMapper, sugar *zap.SugaredLogger) kubernetes.IKubernetesClient {
-	kubernetesClient, err := kubernetes.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath, mapper)
+func initializeKubernetesClient(config *Config, mapper mapper.IMapper, sugar *zap.SugaredLogger) ultronServices.IKubernetesService {
+	kubernetesClient, err := ultronServices.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath)
 
 	if err != nil {
 		sugar.Fatalf("Failed to initialize kubernetes client with error: %v", err)

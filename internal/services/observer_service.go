@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/be-heroes/ultron-observer/internal/clients/kubernetes"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
+	services "github.com/be-heroes/ultron/pkg/services"
 	"github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -18,16 +18,16 @@ type IObserverService interface {
 }
 
 type ObserverService struct {
-	client      kubernetes.IKubernetesClient
-	redisClient *redis.Client
-	mapper      mapper.IMapper
+	kubernetesService services.IKubernetesService
+	redisClient       *redis.Client
+	mapper            mapper.IMapper
 }
 
-func NewObserverService(client kubernetes.IKubernetesClient, redisClient *redis.Client, mapper mapper.IMapper) *ObserverService {
+func NewObserverService(kubernetesService services.IKubernetesService, redisClient *redis.Client, mapper mapper.IMapper) *ObserverService {
 	return &ObserverService{
-		client:      client,
-		redisClient: redisClient,
-		mapper:      mapper,
+		kubernetesService: kubernetesService,
+		redisClient:       redisClient,
+		mapper:            mapper,
 	}
 }
 
@@ -69,7 +69,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 
 			return
 		case <-ticker.C:
-			_, err := o.client.GetPodMetrics()
+			_, err := o.kubernetesService.GetPodMetrics()
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching pod metrics: %w", err)
 				continue
@@ -121,7 +121,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 
 			return
 		case <-ticker.C:
-			_, err := o.client.GetNodeMetrics()
+			_, err := o.kubernetesService.GetNodeMetrics()
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching node metrics: %w", err)
 				continue
