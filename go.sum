@@ -1,7 +1,5 @@
-github.com/be-heroes/ultron v0.2.0 h1:k46BbuNiwWyfudVL17Id/074gGjqJshngW6lrV+hIf8=
-github.com/be-heroes/ultron v0.2.0/go.mod h1:nkdFPsyLrWan6SaU3qKMw75EgnPS1k4qHcv2XeDf30k=
-github.com/be-heroes/ultron-attendant v0.1.0 h1:aHSdy8gTR091Wru8/DcGFSPJBU40SM+nyE5tqTJUbGE=
-github.com/be-heroes/ultron-attendant v0.1.0/go.mod h1:A1qdq7tIFK4iRE3kViu7a/o36YRsTehwxG5MPoqywos=
+github.com/be-heroes/ultron v0.2.2 h1:CX1Nl73Oh53GE9D/EE88ND3g4w8aTO2al3gDaU+29mc=
+github.com/be-heroes/ultron v0.2.2/go.mod h1:gEY9X7m77bYaaPOttWuPD6XXX29yIdnW+gw9q4hDAJQ=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

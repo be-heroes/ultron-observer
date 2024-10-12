@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 
-	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	services "github.com/be-heroes/ultron/pkg/services"
 )
@@ -20,8 +19,8 @@ func LoadConfig() (*Config, error) {
 		RedisServerAddress:   os.Getenv(ultron.EnvRedisServerAddress),
 		RedisServerPassword:  os.Getenv(ultron.EnvRedisServerPassword),
 		RedisServerDatabase:  redisDatabase,
-		KubernetesConfigPath: os.Getenv(attendant.EnvKubernetesConfig),
-		KubernetesMasterURL:  fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort)),
+		KubernetesConfigPath: os.Getenv(ultron.EnvKubernetesConfig),
+		KubernetesMasterURL:  fmt.Sprintf("tcp://%s:%s", os.Getenv(ultron.EnvKubernetesServiceHost), os.Getenv(ultron.EnvKubernetesServicePort)),
 	}, nil
 }
 

@@ -71,7 +71,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 
 			return
 		case <-ticker.C:
-			_, err := o.kubernetesService.GetPodMetrics()
+			_, err := o.kubernetesService.GetPodMetrics(ctx)
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching pod metrics: %w", err)
 				continue
@@ -124,7 +124,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 
 			return
 		case <-ticker.C:
-			_, err := o.kubernetesService.GetNodeMetrics()
+			_, err := o.kubernetesService.GetNodeMetrics(ctx)
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching node metrics: %w", err)
 				continue
