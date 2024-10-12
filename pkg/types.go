@@ -5,5 +5,5 @@ type Config struct {
 	RedisServerPassword  string
 	RedisServerDatabase  int
 	KubernetesConfigPath string
-	KubernetesMasterURL  string
+	KubernetesMasterUrl  string
 }
