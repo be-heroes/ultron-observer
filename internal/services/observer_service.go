@@ -11,6 +11,7 @@ import (
 	services "github.com/be-heroes/ultron/pkg/services"
 	"github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type IObserverService interface {
@@ -33,8 +34,6 @@ func NewObserverService(kubernetesService services.IKubernetesService, redisClie
 }
 
 func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error) {
-	// TODO: Figure out a way to remove a cache entry if a pod is deleted.
-	// TODO: Figure out a way to update a cache entry if a pod is moved to another namespace.
 	podKey := fmt.Sprintf("%s:%s:%s", observer.CacheKeyPrefixPod, pod.Namespace, pod.Name)
 
 	exists, err := o.redisClient.Exists(ctx, podKey).Result()
@@ -71,7 +70,16 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 
 			return
 		case <-ticker.C:
-			_, err := o.kubernetesService.GetPodMetrics(ctx)
+			pod, err := o.kubernetesService.GetPods(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf("metadata.name=%s", pod.Name),
+			})
+			if err != nil || pod == nil {
+				errChan <- fmt.Errorf("error fetching pod: %w", err)
+
+				return
+			}
+
+			_, err = o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching pod metrics: %w", err)
 				continue
@@ -79,14 +87,12 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 
 			//TODO: Process pod specific metrics and update relevant data sources.
 
-			// Signal successful observation cycle
 			errChan <- nil
 		}
 	}
 }
 
 func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error) {
-	// TODO: Figure out a way to remove a cache entry if a node is removed.
 	nodeKey := fmt.Sprintf("%s:%s", observer.CacheKeyPrefixNode, node.Name)
 
 	exists, err := o.redisClient.Exists(ctx, nodeKey).Result()
@@ -124,7 +130,16 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 
 			return
 		case <-ticker.C:
-			_, err := o.kubernetesService.GetNodeMetrics(ctx)
+			node, err := o.kubernetesService.GetNodes(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name),
+			})
+			if err != nil || node == nil {
+				errChan <- fmt.Errorf("error fetching node: %w", err)
+
+				return
+			}
+
+			_, err = o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching node metrics: %w", err)
 				continue
@@ -132,7 +147,6 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 
 			//TODO: Process node specific metrics and update relevant data sources.
 
-			// Signal successful observation cycle
 			errChan <- nil
 		}
 	}

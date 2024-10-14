@@ -1,5 +1,5 @@
-github.com/be-heroes/ultron v0.3.0 h1:g1mc6qulvrKUfhJS7KjZoT62edIQ/mS1iY0dB8YkMTU=
-github.com/be-heroes/ultron v0.3.0/go.mod h1:gEY9X7m77bYaaPOttWuPD6XXX29yIdnW+gw9q4hDAJQ=
+github.com/be-heroes/ultron v0.3.1 h1:s5iEiw/IuNXeeIvQ4fJCgaBsVbbvfuXjrl8AJ9xQp2s=
+github.com/be-heroes/ultron v0.3.1/go.mod h1:gEY9X7m77bYaaPOttWuPD6XXX29yIdnW+gw9q4hDAJQ=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=
