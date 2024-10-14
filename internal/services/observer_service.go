@@ -115,22 +115,22 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 				continue
 			}
 
-			// TODO: Update key names to match the actual keys in the metrics map
-			cpuUsage, err := strconv.Atoi(podMetrics["key"]["cpuUsage"])
-			if err != nil {
-				errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
-				continue
-			}
+			for _, value := range podMetrics {
+				cpuUsage, err := strconv.Atoi(value["cpuUsage"])
+				if err != nil {
+					errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
+					continue
+				}
 
-			// TODO: Update key names to match the actual keys in the metrics map
-			memoryUsage, err := strconv.Atoi(podMetrics["key"]["memoryUsage"])
-			if err != nil {
-				errChan <- fmt.Errorf("error parsing memory usage: %w", err)
-				continue
-			}
+				memoryUsage, err := strconv.Atoi(value["memoryUsage"])
+				if err != nil {
+					errChan <- fmt.Errorf("error parsing memory usage: %w", err)
+					continue
+				}
 
-			cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
-			memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
+				cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
+				memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
+			}
 
 			errChan <- nil
 		}
@@ -206,22 +206,22 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 				continue
 			}
 
-			// TODO: Update key names to match the actual keys in the metrics map
-			cpuUsage, err := strconv.Atoi(nodeMetrics["key"]["cpuUsage"])
-			if err != nil {
-				errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
-				continue
-			}
+			for _, value := range nodeMetrics {
+				cpuUsage, err := strconv.Atoi(value["cpuUsage"])
+				if err != nil {
+					errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
+					continue
+				}
 
-			// TODO: Update key names to match the actual keys in the metrics map
-			memoryUsage, err := strconv.Atoi(nodeMetrics["key"]["memoryUsage"])
-			if err != nil {
-				errChan <- fmt.Errorf("error parsing memory usage: %w", err)
-				continue
-			}
+				memoryUsage, err := strconv.Atoi(value["memoryUsage"])
+				if err != nil {
+					errChan <- fmt.Errorf("error parsing memory usage: %w", err)
+					continue
+				}
 
-			cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("node", node.Name)))
-			memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("node", node.Name)))
+				cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("node", node.Name)))
+				memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("node", node.Name)))
+			}
 
 			errChan <- nil
 		}
