@@ -70,22 +70,24 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 
 			return
 		case <-ticker.C:
-			pod, err := o.kubernetesService.GetPods(ctx, metav1.ListOptions{
+			exists, err := o.kubernetesService.GetPods(ctx, metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("metadata.name=%s", pod.Name),
 			})
-			if err != nil || pod == nil {
+			if err != nil || exists == nil {
 				errChan <- fmt.Errorf("error fetching pod: %w", err)
 
 				return
 			}
 
-			_, err = o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{})
+			_, err = o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf("metadata.name=%s", pod.Name),
+			})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching pod metrics: %w", err)
 				continue
 			}
 
-			//TODO: Process pod specific metrics and update relevant data sources.
+			//TODO: Convert pod metrics to OTLP format and send to OpenTelemetry Collector.
 
 			errChan <- nil
 		}
@@ -130,22 +132,24 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 
 			return
 		case <-ticker.C:
-			node, err := o.kubernetesService.GetNodes(ctx, metav1.ListOptions{
+			exists, err := o.kubernetesService.GetNodes(ctx, metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name),
 			})
-			if err != nil || node == nil {
+			if err != nil || exists == nil {
 				errChan <- fmt.Errorf("error fetching node: %w", err)
 
 				return
 			}
 
-			_, err = o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{})
+			_, err = o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name),
+			})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching node metrics: %w", err)
 				continue
 			}
 
-			//TODO: Process node specific metrics and update relevant data sources.
+			//TODO: Convert node metrics to OTLP format and send to OpenTelemetry Collector.
 
 			errChan <- nil
 		}
