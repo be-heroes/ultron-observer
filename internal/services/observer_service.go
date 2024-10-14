@@ -9,6 +9,7 @@ import (
 
 	otlp "github.com/be-heroes/ultron-observer/internal/clients/otlp"
 	observer "github.com/be-heroes/ultron-observer/pkg"
+	ultron "github.com/be-heroes/ultron/pkg"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
 	"github.com/redis/go-redis/v9"
@@ -79,13 +80,13 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 
 	meter := otel.Meter("pod-observation")
 
-	cpuCounter, err := meter.Int64Counter("pod_cpu_usage")
+	cpuCounter, err := meter.Int64Counter("pod_cpu_total")
 	if err != nil {
 		errChan <- fmt.Errorf("error creating cpu counter: %w", err)
 		return
 	}
 
-	memoryCounter, err := meter.Int64Counter("pod_memory_usage")
+	memoryCounter, err := meter.Int64Counter("pod_memory_total")
 	if err != nil {
 		errChan <- fmt.Errorf("error creating memory counter: %w", err)
 		return
@@ -116,20 +117,20 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 			}
 
 			for _, value := range podMetrics {
-				cpuUsage, err := strconv.Atoi(value["cpuUsage"])
+				cpuTotal, err := strconv.Atoi(value[ultron.MetricKeyCpuTotal])
 				if err != nil {
-					errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
+					errChan <- fmt.Errorf("error parsing CPU total: %w", err)
 					continue
 				}
 
-				memoryUsage, err := strconv.Atoi(value["memoryUsage"])
+				memoryTotal, err := strconv.Atoi(value[ultron.MetricKeyMemoryTotal])
 				if err != nil {
-					errChan <- fmt.Errorf("error parsing memory usage: %w", err)
+					errChan <- fmt.Errorf("error parsing memory total: %w", err)
 					continue
 				}
 
-				cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
-				memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
+				cpuCounter.Add(ctx, int64(cpuTotal), metric.WithAttributes(attribute.String("pod", pod.Name)))
+				memoryCounter.Add(ctx, int64(memoryTotal), metric.WithAttributes(attribute.String("pod", pod.Name)))
 			}
 
 			errChan <- nil
@@ -207,13 +208,13 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 			}
 
 			for _, value := range nodeMetrics {
-				cpuUsage, err := strconv.Atoi(value["cpuUsage"])
+				cpuUsage, err := strconv.Atoi(value[ultron.MetricKeyCpuUsage])
 				if err != nil {
 					errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
 					continue
 				}
 
-				memoryUsage, err := strconv.Atoi(value["memoryUsage"])
+				memoryUsage, err := strconv.Atoi(value[ultron.MetricKeyMemoryUsage])
 				if err != nil {
 					errChan <- fmt.Errorf("error parsing memory usage: %w", err)
 					continue
