@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
+	otlp "github.com/be-heroes/ultron-observer/internal/clients/otlp"
 	observer "github.com/be-heroes/ultron-observer/pkg"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -22,15 +27,24 @@ type IObserverService interface {
 type ObserverService struct {
 	kubernetesService services.IKubernetesService
 	redisClient       *redis.Client
+	meterClient       otlp.IMeterClient
 	mapper            mapper.IMapper
 }
 
-func NewObserverService(kubernetesService services.IKubernetesService, redisClient *redis.Client, mapper mapper.IMapper) *ObserverService {
+func NewObserverService(kubernetesService services.IKubernetesService, redisClient *redis.Client, meterClient otlp.IMeterClient, mapper mapper.IMapper) (*ObserverService, error) {
+	meterProvider, err := meterClient.GetMeterProvider(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	otel.SetMeterProvider(meterProvider)
+
 	return &ObserverService{
 		kubernetesService: kubernetesService,
 		redisClient:       redisClient,
+		meterClient:       meterClient,
 		mapper:            mapper,
-	}
+	}, nil
 }
 
 func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error) {
@@ -63,6 +77,20 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 		o.redisClient.Del(ctx, podKey)
 	}()
 
+	meter := otel.Meter("pod-observation")
+
+	cpuCounter, err := meter.Int64Counter("pod_cpu_usage")
+	if err != nil {
+		errChan <- fmt.Errorf("error creating cpu counter: %w", err)
+		return
+	}
+
+	memoryCounter, err := meter.Int64Counter("pod_memory_usage")
+	if err != nil {
+		errChan <- fmt.Errorf("error creating memory counter: %w", err)
+		return
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -79,7 +107,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 				return
 			}
 
-			_, err = o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{
+			podMetrics, err := o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("metadata.name=%s", pod.Name),
 			})
 			if err != nil {
@@ -87,7 +115,22 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 				continue
 			}
 
-			//TODO: Convert pod metrics to OTLP format and send to OpenTelemetry Collector.
+			// TODO: Update key names to match the actual keys in the metrics map
+			cpuUsage, err := strconv.Atoi(podMetrics["key"]["cpuUsage"])
+			if err != nil {
+				errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
+				continue
+			}
+
+			// TODO: Update key names to match the actual keys in the metrics map
+			memoryUsage, err := strconv.Atoi(podMetrics["key"]["memoryUsage"])
+			if err != nil {
+				errChan <- fmt.Errorf("error parsing memory usage: %w", err)
+				continue
+			}
+
+			cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
+			memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("pod", pod.Name)))
 
 			errChan <- nil
 		}
@@ -125,6 +168,20 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 		o.redisClient.Del(ctx, nodeKey)
 	}()
 
+	meter := otel.Meter("node-observation")
+
+	cpuCounter, err := meter.Int64Counter("node_cpu_usage")
+	if err != nil {
+		errChan <- fmt.Errorf("error creating cpu counter: %w", err)
+		return
+	}
+
+	memoryCounter, err := meter.Int64Counter("node_memory_usage")
+	if err != nil {
+		errChan <- fmt.Errorf("error creating memory counter: %w", err)
+		return
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -141,7 +198,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 				return
 			}
 
-			_, err = o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{
+			nodeMetrics, err := o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name),
 			})
 			if err != nil {
@@ -149,7 +206,22 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 				continue
 			}
 
-			//TODO: Convert node metrics to OTLP format and send to OpenTelemetry Collector.
+			// TODO: Update key names to match the actual keys in the metrics map
+			cpuUsage, err := strconv.Atoi(nodeMetrics["key"]["cpuUsage"])
+			if err != nil {
+				errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
+				continue
+			}
+
+			// TODO: Update key names to match the actual keys in the metrics map
+			memoryUsage, err := strconv.Atoi(nodeMetrics["key"]["memoryUsage"])
+			if err != nil {
+				errChan <- fmt.Errorf("error parsing memory usage: %w", err)
+				continue
+			}
+
+			cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("node", node.Name)))
+			memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("node", node.Name)))
 
 			errChan <- nil
 		}

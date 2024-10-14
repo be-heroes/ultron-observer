@@ -10,7 +10,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/be-heroes/ultron-observer/internal/services"
+	otlp "github.com/be-heroes/ultron-observer/internal/clients/otlp"
+	services "github.com/be-heroes/ultron-observer/internal/services"
 	observer "github.com/be-heroes/ultron-observer/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	"github.com/be-heroes/ultron/pkg/mapper"
@@ -56,8 +57,14 @@ func main() {
 		sugar.Fatalf("Failed to initialize Kubernetes client: %v", err)
 	}
 
-	mapperInstance := mapper.NewMapper()
-	observer := services.NewObserverService(kubernetesClient, redisClient, mapperInstance)
+	meterClient := otlp.NewMeterClient("config.OTLPMetricsCollectorURL", "config.ServiceName")
+
+	mapper := mapper.NewMapper()
+	observer, err := services.NewObserverService(kubernetesClient, redisClient, meterClient, mapper)
+
+	if err != nil {
+		sugar.Fatalf("Failed to initialize observer service: %v", err)
+	}
 
 	sugar.Info("Initialized ultron-observer")
 	sugar.Info("Starting ultron-observer")
