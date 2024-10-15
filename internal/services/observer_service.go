@@ -162,7 +162,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 		return
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
 
