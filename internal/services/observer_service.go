@@ -78,15 +78,15 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 		o.redisClient.Del(ctx, podKey)
 	}()
 
-	meter := otel.Meter("pod-observation")
+	meter := otel.Meter(observer.MeterKeyPod)
 
-	cpuCounter, err := meter.Int64Counter("pod_cpu_total")
+	cpuCounter, err := meter.Int64Counter(ultron.WeightKeyCpuTotal)
 	if err != nil {
 		errChan <- fmt.Errorf("error creating cpu counter: %w", err)
 		return
 	}
 
-	memoryCounter, err := meter.Int64Counter("pod_memory_total")
+	memoryCounter, err := meter.Int64Counter(ultron.WeightKeyMemoryTotal)
 	if err != nil {
 		errChan <- fmt.Errorf("error creating memory counter: %w", err)
 		return
@@ -100,7 +100,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 			return
 		case <-ticker.C:
 			exists, err := o.kubernetesService.GetPods(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("metadata.name=%s", pod.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, pod.Name),
 			})
 			if err != nil || exists == nil {
 				errChan <- fmt.Errorf("error fetching pod: %w", err)
@@ -109,7 +109,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 			}
 
 			podMetrics, err := o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("metadata.name=%s", pod.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, pod.Name),
 			})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching pod metrics: %w", err)
@@ -169,15 +169,15 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 		o.redisClient.Del(ctx, nodeKey)
 	}()
 
-	meter := otel.Meter("node-observation")
+	meter := otel.Meter(observer.MeterKeyNode)
 
-	cpuCounter, err := meter.Int64Counter("node_cpu_usage")
+	cpuCounter, err := meter.Int64Counter(ultron.WeightKeyCpuUsage)
 	if err != nil {
 		errChan <- fmt.Errorf("error creating cpu counter: %w", err)
 		return
 	}
 
-	memoryCounter, err := meter.Int64Counter("node_memory_usage")
+	memoryCounter, err := meter.Int64Counter(ultron.WeightKeyMemoryUsage)
 	if err != nil {
 		errChan <- fmt.Errorf("error creating memory counter: %w", err)
 		return
@@ -191,7 +191,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 			return
 		case <-ticker.C:
 			exists, err := o.kubernetesService.GetNodes(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, node.Name),
 			})
 			if err != nil || exists == nil {
 				errChan <- fmt.Errorf("error fetching node: %w", err)
@@ -200,7 +200,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 			}
 
 			nodeMetrics, err := o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("metadata.name=%s", node.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, node.Name),
 			})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching node metrics: %w", err)
