@@ -3,7 +3,7 @@ module github.com/be-heroes/ultron-observer
 go 1.23.1
 
 require (
-	github.com/be-heroes/ultron v0.4.0
+	github.com/be-heroes/ultron v0.5.1
 	github.com/redis/go-redis/v9 v9.6.1
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.31.0

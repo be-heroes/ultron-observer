@@ -117,13 +117,13 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 			}
 
 			for _, value := range podMetrics {
-				cpuTotal, err := strconv.Atoi(value[ultron.MetricKeyCpuTotal])
+				cpuTotal, err := strconv.Atoi(value[ultron.WeightKeyCpuTotal])
 				if err != nil {
 					errChan <- fmt.Errorf("error parsing CPU total: %w", err)
 					continue
 				}
 
-				memoryTotal, err := strconv.Atoi(value[ultron.MetricKeyMemoryTotal])
+				memoryTotal, err := strconv.Atoi(value[ultron.WeightKeyMemoryTotal])
 				if err != nil {
 					errChan <- fmt.Errorf("error parsing memory total: %w", err)
 					continue
@@ -208,13 +208,13 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 			}
 
 			for _, value := range nodeMetrics {
-				cpuUsage, err := strconv.Atoi(value[ultron.MetricKeyCpuUsage])
+				cpuUsage, err := strconv.Atoi(value[ultron.WeightKeyCpuUsage])
 				if err != nil {
 					errChan <- fmt.Errorf("error parsing CPU usage: %w", err)
 					continue
 				}
 
-				memoryUsage, err := strconv.Atoi(value[ultron.MetricKeyMemoryUsage])
+				memoryUsage, err := strconv.Atoi(value[ultron.WeightKeyMemoryUsage])
 				if err != nil {
 					errChan <- fmt.Errorf("error parsing memory usage: %w", err)
 					continue
