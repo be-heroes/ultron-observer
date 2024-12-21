@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	otlp "github.com/be-heroes/ultron-observer/internal/clients/otlp"
@@ -16,13 +17,12 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type IObserverService interface {
-	ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error)
-	ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error)
+	ObservePod(ctx context.Context, wPod *ultron.WeightedPod, errChan chan<- error)
+	ObserveNode(ctx context.Context, wNode *ultron.WeightedNode, errChan chan<- error)
 }
 
 type ObserverService struct {
@@ -48,8 +48,8 @@ func NewObserverService(kubernetesService services.IKubernetesService, redisClie
 	}, nil
 }
 
-func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errChan chan<- error) {
-	podKey := fmt.Sprintf("%s:%s:%s", observer.CacheKeyPrefixPod, pod.Namespace, pod.Name)
+func (o *ObserverService) ObservePod(ctx context.Context, wPod *ultron.WeightedPod, errChan chan<- error) {
+	podKey := fmt.Sprintf("%s:%s", observer.CacheKeyPrefixPod, mapToString(wPod.Selector))
 
 	exists, err := o.redisClient.Exists(ctx, podKey).Result()
 	if err != nil {
@@ -100,7 +100,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 			return
 		case <-ticker.C:
 			exists, err := o.kubernetesService.GetPods(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, pod.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, wPod.Selector[ultron.MetadataName]),
 			})
 			if err != nil || exists == nil {
 				errChan <- fmt.Errorf("error fetching pod: %w", err)
@@ -109,7 +109,7 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 			}
 
 			podMetrics, err := o.kubernetesService.GetPodMetrics(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, pod.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, wPod.Selector[ultron.MetadataName]),
 			})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching pod metrics: %w", err)
@@ -129,8 +129,8 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 					continue
 				}
 
-				cpuCounter.Add(ctx, int64(cpuTotal), metric.WithAttributes(attribute.String("pod", pod.Name)))
-				memoryCounter.Add(ctx, int64(memoryTotal), metric.WithAttributes(attribute.String("pod", pod.Name)))
+				cpuCounter.Add(ctx, int64(cpuTotal), metric.WithAttributes(attribute.String("pod", wPod.Selector[ultron.MetadataName])))
+				memoryCounter.Add(ctx, int64(memoryTotal), metric.WithAttributes(attribute.String("pod", wPod.Selector[ultron.MetadataName])))
 			}
 
 			errChan <- nil
@@ -138,8 +138,8 @@ func (o *ObserverService) ObservePod(ctx context.Context, pod *corev1.Pod, errCh
 	}
 }
 
-func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, errChan chan<- error) {
-	nodeKey := fmt.Sprintf("%s:%s", observer.CacheKeyPrefixNode, node.Name)
+func (o *ObserverService) ObserveNode(ctx context.Context, wNode *ultron.WeightedNode, errChan chan<- error) {
+	nodeKey := fmt.Sprintf("%s:%s", observer.CacheKeyPrefixNode, mapToString(wNode.Selector))
 
 	exists, err := o.redisClient.Exists(ctx, nodeKey).Result()
 	if err != nil {
@@ -191,7 +191,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 			return
 		case <-ticker.C:
 			exists, err := o.kubernetesService.GetNodes(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, node.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, wNode.Selector[ultron.LabelHostName]),
 			})
 			if err != nil || exists == nil {
 				errChan <- fmt.Errorf("error fetching node: %w", err)
@@ -200,7 +200,7 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 			}
 
 			nodeMetrics, err := o.kubernetesService.GetNodeMetrics(ctx, metav1.ListOptions{
-				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, node.Name),
+				FieldSelector: fmt.Sprintf("%s=%s", ultron.MetadataName, wNode.Selector[ultron.LabelHostName]),
 			})
 			if err != nil {
 				errChan <- fmt.Errorf("error fetching node metrics: %w", err)
@@ -220,11 +220,28 @@ func (o *ObserverService) ObserveNode(ctx context.Context, node *corev1.Node, er
 					continue
 				}
 
-				cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("node", node.Name)))
-				memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("node", node.Name)))
+				cpuCounter.Add(ctx, int64(cpuUsage), metric.WithAttributes(attribute.String("node", wNode.Selector[ultron.LabelHostName])))
+				memoryCounter.Add(ctx, int64(memoryUsage), metric.WithAttributes(attribute.String("node", wNode.Selector[ultron.LabelHostName])))
 			}
 
 			errChan <- nil
 		}
 	}
+}
+
+func mapToString(m map[string]string) string {
+	var sb strings.Builder
+
+	for key, value := range m {
+		sb.WriteString(key + "=" + value + ", ")
+	}
+
+	result := sb.String()
+
+	// Trim the trailing comma and space
+	if len(result) > 2 {
+		result = result[:len(result)-2]
+	}
+
+	return result
 }

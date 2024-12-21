@@ -17,7 +17,6 @@ import (
 	"github.com/be-heroes/ultron/pkg/mapper"
 
 	"github.com/redis/go-redis/v9"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func main() {
@@ -108,32 +107,32 @@ func main() {
 func processMessage(ctx context.Context, observer services.IObserverService, msg *redis.Message, sugar *zap.SugaredLogger) {
 	switch msg.Channel {
 	case ultron.TopicPodObserve:
-		var pod corev1.Pod
+		var wPod ultron.WeightedPod
 
-		if err := json.Unmarshal([]byte(msg.Payload), &pod); err != nil {
+		if err := json.Unmarshal([]byte(msg.Payload), &wPod); err != nil {
 			sugar.Errorf("Error deserializing msg.Payload to Pod: %v", err)
 			return
 		}
 
 		errChan := make(chan error, 1)
 
-		go observer.ObservePod(ctx, &pod, errChan)
+		go observer.ObservePod(ctx, &wPod, errChan)
 
 		if err := <-errChan; err != nil {
 			sugar.Errorf("Error occurred while observing Pod: %v", err)
 		}
 
 	case ultron.TopicNodeObserve:
-		var node corev1.Node
+		var wNode ultron.WeightedNode
 
-		if err := json.Unmarshal([]byte(msg.Payload), &node); err != nil {
+		if err := json.Unmarshal([]byte(msg.Payload), &wNode); err != nil {
 			sugar.Errorf("Error deserializing msg.Payload to Node: %v", err)
 			return
 		}
 
 		errChan := make(chan error, 1)
 
-		go observer.ObserveNode(ctx, &node, errChan)
+		go observer.ObserveNode(ctx, &wNode, errChan)
 
 		if err := <-errChan; err != nil {
 			sugar.Errorf("Error occurred while observing Node: %v", err)
