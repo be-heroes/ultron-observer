@@ -20,7 +20,7 @@ func LoadConfig() (*Config, error) {
 		RedisServerPassword:  os.Getenv(ultron.EnvRedisServerPassword),
 		RedisServerDatabase:  redisDatabase,
 		KubernetesConfigPath: os.Getenv(ultron.EnvKubernetesConfig),
-		KubernetesMasterUrl:  fmt.Sprintf("tcp://%s:%s", os.Getenv(ultron.EnvKubernetesServiceHost), os.Getenv(ultron.EnvKubernetesServicePort)),
+		KubernetesMasterUrl:  fmt.Sprintf("https://%s:%s", os.Getenv(ultron.EnvKubernetesServiceHost), os.Getenv(ultron.EnvKubernetesServicePort)),
 	}, nil
 }
 
